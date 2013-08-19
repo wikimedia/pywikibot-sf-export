@@ -5,13 +5,6 @@ Stuff to export data from sf.net
 import datetime
 import requests
 
-# The different types of "tickets" we have
-types = [
-    'feature-requests',
-    'support-requests',
-    'patches',
-    'bugs',
-]
 
 
 def parse_ts(ts):

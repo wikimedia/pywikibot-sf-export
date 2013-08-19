@@ -3,19 +3,12 @@
 Stuff to import into bugzilla with
 """
 
-import bugzilla
-
-b = bugzilla.Bugzilla(url='https://bugzilla.wikimedia.org/xmlrpc.cgi')
-b.connect()
-for thing in b.getproducts():
-    print thing['name']
-
 
 def create_bug(BZ, ticket):
     """
     Currently just a mock implementation...
 
-    
+
     Import a bug from sf.net to bugzilla
     @param BZ: Bugzilla object that has already been logged in
     @type BZ: bugzilla.Bugzilla
