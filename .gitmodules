@@ -1,0 +1,3 @@
+[submodule "python-bugzilla"]
+	path = python-bugzilla
+	url = git://git.fedorahosted.org/git/python-bugzilla
