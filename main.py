@@ -34,11 +34,12 @@ def main():
     for group in types:
         for ticket in sf.iter_tickets(group):
             if ticket.is_not_closed():
-                num = bz.create_bug(b, ticket)
+                bug = bz.create_bug(b, ticket)
                 text = 'This ticket has been moved to ' \
-                       'https://bugzilla.wikimedia.org/show_bug.cgi?id={0}'.format(num)
+                       'https://bugzilla.wikimedia.org/show_bug.cgi?id={0}'.format(bug.id)
 
                 ticket.add_comment(text)
+                bz.add_to_see_also(bug, ticket)
 
 if __name__ == '__main__':
     main()

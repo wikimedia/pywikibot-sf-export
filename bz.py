@@ -24,4 +24,17 @@ def create_bug(BZ, ticket):
         'status': '',  # Need to map this
     }
     bug = BZ.createbug(**params)
-    return bug.id  # Numerical bug id
+    return bug  # Bug object
+
+
+def add_to_see_also(bug, ticket):
+    """
+    @type bug: bugzilla.Bug
+    @type ticket: sf.Ticket
+    """
+    url = ticket.human_url()
+    upd = bug.bugzilla.build_update(
+        see_also_add=[url]
+    )
+    bug.bugzilla.update_bugs(bug.bug_id, upd)
+
