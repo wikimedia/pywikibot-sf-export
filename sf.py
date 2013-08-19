@@ -20,7 +20,7 @@ def get_list(group):
     """
     # FIXME: need to continue the query somehow
     url = 'https://sourceforge.net/rest/p/pywikipediabot/' + group
-    r = requests.get(url)
+    r = requests.get(url, params={'limit': 5000})
     return r.json()
 
 
