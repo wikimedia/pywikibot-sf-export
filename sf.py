@@ -47,6 +47,12 @@ class Ticket:
         """
         return 'https://sourceforge.net/rest/p/pywikipediabot/{0}/{1}'.format(self.group, self.id)
 
+    def thread_api(self):
+        """
+        API endpoint for the "discussion thread"
+        """
+        return self.api() + '/_discuss/thread/{0}/new'.format(self.json['ticket']['discussion_thread']['_id'])
+
     def human_url(self):
         """
         The url for humans to use
@@ -87,6 +93,12 @@ class Ticket:
 
     def is_not_closed(self):
         return not self.json['ticket']['status'].startswith('closed')
+
+    def add_comment(self, text):
+        # TODO: Test this
+        params = {'text': text}
+        r = requests.post(self.thread_api(), params)
+        print 'Added comment.'
 
     def export(self):
         # TODO: Is this good?
