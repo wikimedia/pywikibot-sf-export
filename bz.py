@@ -38,3 +38,13 @@ def add_to_see_also(bug, ticket):
     )
     bug.bugzilla.update_bugs(bug.bug_id, upd)
 
+
+def upload_attachments(bug, ticket):
+    for url, obj in ticket.fetch_attachments():
+        desc = 'Copy of attachment from {0}'.format(url)
+        bug.bugzilla.attachfile(bug.bug_id,  # bug list
+                                obj,  # StringIO object of attachment text
+                                desc,  # Simple description of file
+                                file_name=desc,  # Does this even make sense?
+                                content_type='text/plain'  # python-bugzilla says we need to do this
+        )

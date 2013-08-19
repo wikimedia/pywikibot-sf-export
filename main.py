@@ -40,6 +40,7 @@ def main():
 
                 ticket.add_comment(text)
                 bz.add_to_see_also(bug, ticket)
+                bz.upload_attachments(bug, ticket)
 
 if __name__ == '__main__':
     main()

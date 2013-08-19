@@ -4,6 +4,7 @@ Stuff to export data from sf.net
 """
 import datetime
 import requests
+import StringIO
 
 
 
@@ -92,6 +93,27 @@ class Ticket:
         params = {'text': text}
         r = requests.post(self.thread_api(), params)
         print 'Added comment.'
+
+    def iter_attachments(self):
+        """
+        Yields urls for each attachment.
+        Apparently you can't get them over HTTPS, so force HTTP
+        """
+        for attachment in self.json['ticket']['attachments']:
+            yield attachment['url'].replace('https://', 'http://')
+
+    def fetch_attachments(self):
+        """
+        Actually fetches the attachments.
+        returns tuple of str, StringIO.StringIO
+        """
+        for url in self.iter_attachments():
+            r = requests.get(url)
+            s = StringIO.StringIO()
+            s.write(r.text)
+            s.seek(0)  # reset
+            yield url, s
+
 
     def export(self):
         # TODO: Is this good?
