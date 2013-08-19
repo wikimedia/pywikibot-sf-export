@@ -114,7 +114,6 @@ class Ticket:
             s.seek(0)  # reset
             yield url, s
 
-
     def export(self):
         # TODO: Is this good?
         t = ''
@@ -122,9 +121,9 @@ class Ticket:
         t += 'Created on: {0}\n'.format(parse_ts(self.json['ticket']['created_date']))
         t += 'Subject: {0}\n'.format(self.summary())
         t += 'Original description:\n{0}\n'.format(self.description())
-        for cmt in self.comments():
-            t += '---------\n'
-            t += cmt + '\n'
+        #for cmt in self.comments():
+        #    t += '---------\n'
+        #    t += cmt + '\n'
         return t
 
 

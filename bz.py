@@ -24,6 +24,12 @@ def create_bug(BZ, ticket):
         'status': '',  # Need to map this
     }
     bug = BZ.createbug(**params)
+
+    # Now add all the comments.
+    for cmt in ticket.comments():
+        upd = BZ.build_update(comment=cmt)
+        BZ.update_bugs(bug.id, upd)
+
     return bug  # Bug object
 
 
