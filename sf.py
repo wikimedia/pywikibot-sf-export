@@ -30,6 +30,12 @@ def get_list(group):
     return r.json()
 
 
+def iter_tickets(group):
+    stuff = get_list(group)
+    for thing in stuff['tickets']:
+        yield Ticket(group, thing['ticket_num'])
+
+
 class Ticket:
     def __init__(self, group, number):
         self.group = group
@@ -74,9 +80,28 @@ class Ticket:
             yield cmt['text']
 
     def is_open(self):
-        return self.json['ticket']['status'] == 'open'
+        """
+        Works for the most part, but is_not_closed is better I think.
+        """
+        return self.json['ticket']['status'].startswith('open')
 
-if __name__ == '__main__':
+    def is_not_closed(self):
+        return not self.json['ticket']['status'].startswith('closed')
+
+    def export(self):
+        # TODO: Is this good?
+        t = ''
+        t += 'Originally from: {0}\n'.format(self.human_url())
+        t += 'Created on: {0}\n'.format(parse_ts(self.json['ticket']['created_date']))
+        t += 'Subject: {0}\n'.format(self.summary())
+        t += 'Original description:\n{0}\n'.format(self.description())
+        for cmt in self.comments():
+            t += '---------\n'
+            t += cmt + '\n'
+        return t
+
+
+def testticket():
     t = Ticket('bugs', 1653)
     print 'Fetching {0}...'.format(t.human_url())
     print 'Subject: {0}'.format(t.summary())
@@ -85,3 +110,13 @@ if __name__ == '__main__':
     for cmt in t.comments():
         print '------'
         print cmt
+
+
+if __name__ == '__main__':
+    i = iter_tickets('bugs')
+    for t in i:
+        if not t.is_not_closed():
+            print t.human_url()
+            print '----'
+            print t.export()
+            print '----'
