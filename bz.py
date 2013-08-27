@@ -17,7 +17,7 @@ def create_bug(BZ, ticket):
     """
     params = {
         'product': 'Pywikibot',
-        'component': '',  # Need to map this
+        'component': find_valid_component(ticket.labels()),  # Need to map this
         'summary': ticket.summary(),
         'version': '',  # ???
         'description': ticket.export(),
@@ -54,3 +54,45 @@ def upload_attachments(bug, ticket):
                                 file_name=desc,  # Does this even make sense?
                                 content_type='text/plain'  # python-bugzilla says we need to do this
         )
+
+
+def find_valid_component(labels):
+    """
+    Modified slightly from Amir's list...
+    @param labels: current labels on the ticket
+    @return: component to add
+    """
+    components = [
+        'category.py',
+        'copyright.py',
+        'Cosmetic changes',
+        'General',
+        'i18n',
+        'interwiki.py',
+        'login.py',
+        'network',
+        'redirect.py',
+        'solve_disambiguation.py',
+        'weblinkchecker.py',
+        'Wikidata',
+    ]
+    mapping = {
+        'interwiki': 'interwiki.py',
+        'category': 'category.py',
+        'copyright': 'copyright.py',
+        'cosmetic_changes': 'Cosmetic changes',
+        'GUI': 'General',  # GUI is deprecated
+        'login': 'login.py',
+        'other': 'General',
+        'redirect': 'redirect.py',
+        'rewrite': 'General',
+        'solve_disambiguation': 'solve_disambiguation.py',
+        'weblinkchecker': 'weblinkchecker.py',
+    }
+    for label in labels:
+        if label in mapping:
+            return mapping[label]
+        if label in components:
+            return label
+
+    return 'General'

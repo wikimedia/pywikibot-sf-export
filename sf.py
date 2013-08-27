@@ -7,7 +7,6 @@ import requests
 import StringIO
 
 
-
 def parse_ts(ts):
     #2013-08-10 23:36:31.812000
     fmt = "%Y-%m-%d %H:%M:%S.%f"
@@ -59,7 +58,7 @@ class Ticket:
             self._json = r.json()
         return self._json
 
-    def label(self):
+    def labels(self):
         return self.json['ticket']['labels']
 
     @property
@@ -123,6 +122,8 @@ class Ticket:
         t += 'Originally from: {0}\n'.format(self.human_url())
         t += 'Created on: {0}\n'.format(parse_ts(self.json['ticket']['created_date']))
         t += 'Subject: {0}\n'.format(self.summary())
+        if len(self.labels()) > 1:
+            t+= 'Original labels: ' + ', '.join(self.labels())
         t += 'Original description:\n{0}\n'.format(self.description())
         #for cmt in self.comments():
         #    t += '---------\n'
