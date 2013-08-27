@@ -73,10 +73,10 @@ class Ticket:
         return self._json
 
     def description(self):
-        return t.json['ticket']['description']
+        return self.json['ticket']['description']
 
     def summary(self):
-        return t.json['ticket']['summary']
+        return self.json['ticket']['summary']
 
     def comments(self):
         for cmt in self.json['ticket']['discussion_thread']['posts']:
