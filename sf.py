@@ -97,6 +97,12 @@ class Ticket:
         r = requests.post(self.thread_api(), params)
         print 'Added comment.'
 
+    def reporter(self):
+        rep = self.json['ticket']['reported_by']
+        if rep == '*anonymous':
+            rep = 'Anonymous user'
+        return rep
+
     def iter_attachments(self):
         """
         Yields urls for each attachment.
@@ -121,6 +127,7 @@ class Ticket:
         # TODO: Is this good?
         t = ''
         t += 'Originally from: {0}\n'.format(self.human_url())
+        t += 'Reported by: {0}\n'.format(self.reporter())
         t += 'Created on: {0}\n'.format(parse_ts(self.json['ticket']['created_date']))
         t += 'Subject: {0}\n'.format(self.summary())
         t += 'Original description:\n{0}\n'.format(self.description())
@@ -144,8 +151,4 @@ def testticket():
 if __name__ == '__main__':
     i = iter_tickets('bugs')
     for t in i:
-        if not t.is_not_closed():
-            print t.human_url()
-            print '----'
-            print t.export()
-            print '----'
+        print t.json['ticket']['reported_by']
