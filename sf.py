@@ -59,6 +59,9 @@ class Ticket:
             self._json = r.json()
         return self._json
 
+    def label(self):
+        return self.json['ticket']['labels']
+
     @property
     def json(self):
         """
