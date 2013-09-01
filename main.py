@@ -10,9 +10,26 @@ Basic workflow is as such:
 * Leave a comment on the sf ticket with a link to the bugzilla bug
 """
 
+import logging
 import bugzilla
 import sf
 import bz
+
+logger = logging.getLogger()
+logger.setLevel(logging.DEBUG)
+formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+
+# Log to a file
+fh = logging.FileHandler('sf-export.log')
+fh.setLevel(logging.DEBUG)
+fh.setFormatter(formatter)
+logger.addHandler(fh)
+
+# Also print log messages
+ch = logging.StreamHandler()
+ch.setLevel(logging.DEBUG)
+ch.setFormatter(formatter)
+logger.addHandler(ch)
 
 b = bugzilla.Bugzilla(
     url='https://bugzilla.wikimedia.org/xmlrpc.cgi',
@@ -41,6 +58,8 @@ def main():
                 ticket.add_comment(text)
                 bz.add_to_see_also(bug, ticket)
                 bz.upload_attachments(bug, ticket)
+                if len(ticket.labels()) > 1:
+                    logging.warn('Ticket: {0} (now bug {1}) had multiple labels'.format(ticket.human_url(), bug.id))
 
 if __name__ == '__main__':
     main()
