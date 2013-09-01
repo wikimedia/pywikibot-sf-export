@@ -3,6 +3,8 @@
 Stuff to import into bugzilla with
 """
 
+import logging
+
 
 def create_bug(BZ, ticket):
     """
@@ -23,6 +25,7 @@ def create_bug(BZ, ticket):
         'description': ticket.export(),
         'status': '',  # Need to map this
     }
+    logging.info('Uploading {0} to Bugzilla'.format(ticket.human_url()))
     bug = BZ.createbug(**params)
 
     # Now add all the comments.
