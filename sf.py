@@ -77,6 +77,14 @@ class Ticket:
     def summary(self):
         return self.json['ticket']['summary']
 
+    def status(self):
+        return self.json['ticket']['status']
+
+    def owner(self):
+        if self.json['ticket']['assigned_to_id'] == "null":
+            return None
+        return self.json['ticket']['assigned_to_id']
+        
     def comments(self):
         for cmt in self.json['ticket']['discussion_thread']['posts']:
             yield cmt['text']

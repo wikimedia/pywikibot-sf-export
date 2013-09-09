@@ -23,8 +23,10 @@ def create_bug(BZ, ticket):
         'summary': ticket.summary(),
         'version': '',  # ???
         'description': ticket.export(),
-        'status': '',  # Need to map this
+        'status': find_status(ticket),  # Need to map this
     }
+    if ticket.group == 'feature-requests':
+        params['severity'] = 'Enhancement'
     logging.info('Uploading {0} to Bugzilla'.format(ticket.human_url()))
     bug = BZ.createbug(**params)
 
@@ -58,7 +60,10 @@ def upload_attachments(bug, ticket):
                                 content_type='text/plain'  # python-bugzilla says we need to do this
         )
 
-
+def find_status(ticket):
+    if ticket.owner():
+        return "ASSIGNED"
+    return "NEW"
 def find_valid_component(labels):
     """
     Modified slightly from Amir's list...
