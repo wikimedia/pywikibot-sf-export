@@ -81,9 +81,11 @@ class Ticket:
         return self.json['ticket']['status']
 
     def owner(self):
-        if self.json['ticket']['assigned_to_id'] == "null":
+        if not ('assigned_to' in self.json['ticket']):
             return None
-        return self.json['ticket']['assigned_to_id']
+        if self.json['ticket']['assigned_to'] == "nobody":
+            return None
+        return self.json['ticket']['assigned_to']
         
     def comments(self):
         for cmt in self.json['ticket']['discussion_thread']['posts']:
@@ -137,6 +139,9 @@ class Ticket:
         t += 'Reported by: {0}\n'.format(self.reporter())
         t += 'Created on: {0}\n'.format(parse_ts(self.json['ticket']['created_date']))
         t += 'Subject: {0}\n'.format(self.summary())
+        assignee = self.owner()
+        if assignee:
+            t += 'Assigned to: {0}\n'.format(assignee)
         if len(self.labels()) > 1:
             t+= 'Original labels: ' + ', '.join(self.labels())
         t += 'Original description:\n{0}\n'.format(self.description())
