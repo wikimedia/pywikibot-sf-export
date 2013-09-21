@@ -21,7 +21,7 @@ def create_bug(BZ, ticket):
         'product': 'Pywikibot',
         'component': find_valid_component(ticket.labels()),  # Need to map this
         'summary': ticket.summary(),
-        'version': '',  # ???
+        'version': 'unspecified',
         'description': ticket.export(),
         'status': find_status(ticket),  # Need to map this
     }
