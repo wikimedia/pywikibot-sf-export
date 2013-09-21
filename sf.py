@@ -2,9 +2,85 @@
 """
 Stuff to export data from sf.net
 """
+
+import certifi
 import datetime
+import oauth2 as oauth
 import requests
 import StringIO
+from urllib import urlencode
+import urlparse
+import webbrowser
+
+from private import *  # Private keys!
+
+REQUEST_TOKEN_URL = 'https://sourceforge.net/rest/oauth/request_token'
+AUTHORIZE_URL = 'https://sourceforge.net/rest/oauth/authorize'
+ACCESS_TOKEN_URL = 'https://sourceforge.net/rest/oauth/access_token'
+URL_BASE = 'http://sourceforge.net/rest/'
+
+
+def login():
+    """
+    Login to sf.net, get auth details...
+    Taken from https://sourceforge.net/p/forge/documentation/Allura%20API/
+    """
+    consumer = oauth.Consumer(CONSUMER_KEY, CONSUMER_SECRET)
+    client = oauth.Client(consumer)
+    client.ca_certs = certifi.where()
+    # Step 1: Get a request token. This is a temporary token that is used for
+    # having the user authorize an access token and to sign the request to obtain
+    # said access token.
+
+    resp, content = client.request(REQUEST_TOKEN_URL, 'GET')
+    if resp['status'] != '200':
+        raise Exception("Invalid response %s." % resp['status'])
+
+    request_token = dict(urlparse.parse_qsl(content))
+
+    # these are intermediate tokens and not needed later
+    #print "Request Token:"
+    #print "    - oauth_token        = %s" % request_token['oauth_token']
+    #print "    - oauth_token_secret = %s" % request_token['oauth_token_secret']
+    #print
+
+    # Step 2: Redirect to the provider. Since this is a CLI script we do not
+    # redirect. In a web application you would redirect the user to the URL
+    # below, specifying the additional parameter oauth_callback=<your callback URL>.
+
+    webbrowser.open("%s?oauth_token=%s" % (AUTHORIZE_URL, request_token['oauth_token']))
+
+    # Since we didn't specify a callback, the user must now enter the PIN displayed in
+    # their browser.  If you had specified a callback URL, it would have been called with
+    # oauth_token and oauth_verifier parameters, used below in obtaining an access token.
+    oauth_verifier = raw_input('What is the PIN? ')
+
+    # Step 3: Once the consumer has redirected the user back to the oauth_callback
+    # URL you can request the access token the user has approved. You use the
+    # request token to sign this request. After this is done you throw away the
+    # request token and use the access token returned. You should store this
+    # access token somewhere safe, like a database, for future use.
+    token = oauth.Token(request_token['oauth_token'], request_token['oauth_token_secret'])
+    token.set_verifier(oauth_verifier)
+    client = oauth.Client(consumer, token)
+    client.ca_certs = certifi.where()
+
+    resp, content = client.request(ACCESS_TOKEN_URL, "GET")
+    access_token = dict(urlparse.parse_qsl(content))
+    print access_token
+    return access_token
+
+
+def make_authenticated_request(url, data):
+    consumer = oauth.Consumer(CONSUMER_KEY, CONSUMER_SECRET)
+    access_token = oauth.Token(ACCESS_KEY, ACCESS_SECRET)
+    client = oauth.Client(consumer, access_token)
+    client.ca_certs = certifi.where()
+    response = client.request(
+        url, 'POST',
+        body=urlencode(data))
+    print "Done.  Response was:"
+    print response
 
 
 def parse_ts(ts):
@@ -103,7 +179,8 @@ class Ticket:
     def add_comment(self, text):
         # TODO: Test this
         params = {'text': text}
-        r = requests.post(self.thread_api(), params)
+        #r = requests.post(self.thread_api(), params)
+        make_authenticated_request(self.thread_api(), params)
         print 'Added comment.'
 
     def reporter(self):
@@ -163,6 +240,4 @@ def testticket():
 
 
 if __name__ == '__main__':
-    i = iter_tickets('bugs')
-    for t in i:
-        print t.json['ticket']['reported_by']
+    login()
