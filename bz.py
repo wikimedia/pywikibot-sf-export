@@ -43,7 +43,7 @@ def add_to_see_also(bug, ticket):
     @type bug: bugzilla.Bug
     @type ticket: sf.Ticket
     """
-    url = ticket.human_url()
+    url = ticket.human_url().rstrip('/')  # Workaround for bug 54416
     upd = bug.bugzilla.build_update(
         see_also_add=[url]
     )
