@@ -215,7 +215,7 @@ class Ticket:
         t = ''
         t += 'Originally from: {0}\n'.format(self.human_url())
         t += 'Reported by: {0}\n'.format(self.reporter())
-        t += 'Created on: {0}\n'.format(parse_ts(self.json['ticket']['created_date']))
+        t += 'Created on: {0}\n'.format(self.json['ticket']['created_date'])
         t += 'Subject: {0}\n'.format(self.summary())
         assignee = self.owner()
         if assignee:
