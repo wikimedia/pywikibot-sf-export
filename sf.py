@@ -2,6 +2,7 @@
 """
 Stuff to export data from sf.net
 """
+from __future__ import unicode_literals
 
 import certifi
 import datetime
@@ -205,7 +206,7 @@ class Ticket:
         for url in self.iter_attachments():
             r = requests.get(url)
             s = StringIO.StringIO()
-            s.write(r.text)
+            s.write(r.text.encode('utf-8'))
             s.seek(0)  # reset
             yield url, s
 
