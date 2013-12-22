@@ -1,12 +1,35 @@
+#!/usr/bin/env python
+# 
+# Required packages:
+reqs = """
+requests >= 2.0.0
+python-bugzilla >= 0.8.0
+html2text >= 3.200.3
+"""
+
 import sys
-import requests
+
+try:
+    import requests
+    assert(requests.__version__ >= "2.0.0")
+
+    import bugzilla
+    assert(bugzilla.__version__ >= "0.8.0")
+
+    import html2text
+    assert(html2text.__version__ >= "3.200.3")
+except (ImportError, AssertionError), e:
+    print "Required package not found: ", e
+    open("jira-reqs.txt", "w").write(reqs)
+    print "Please pip install -r jira-reqs.txt"
+    sys.exit(1)
+
+import sys
 import textwrap
 import json
-import bugzilla
+import re
 
 from datetime import datetime, timedelta
-
-assert(requests.__version__ > "1.0.0")
 
 # iets met BugZilla nog
 
@@ -24,8 +47,22 @@ bug_defaults = {
     'rep_platform': 'All',
 }
 
-#base_url = "http://192.168.1.103:8080/xmlrpc.cgi"
 base_url = "https://bugzilla.wikimedia.org/xmlrpc.cgi"
+saveMigration = True
+skip_existing = True
+
+if True:
+    base_url = "http://192.168.1.103:8080/xmlrpc.cgi"
+    saveMigration = False
+    skip_existing = False
+    bug_defaults = {
+        'product': 'TestProduct',      # SET THIS!
+        'component': 'TestComponent',  # SET THIS!
+        'version': 'unspecified',
+        'blocked': '',               # SET THIS! (to tracking bug or empty for no tracking bug)
+        'op_sys': 'All',
+        'rep_platform': 'All',
+    }
 
 username = "wmf.bugconverter@gmail.com"
 import config
@@ -50,8 +87,19 @@ def get(*args, **kwargs):
     return json.loads(requests.get(*args, **kwargs).text, object_hook=hook)
 
 def reply_format(text, nindent=1):
-    prefix = '>'*nindent + ' '
+    prefix = ('>'*nindent + ' ') if nindent > 0 else ''
     return textwrap.fill(text, initial_indent=prefix, subsequent_indent=prefix, break_long_words=False)
+
+def htmltobz(html):
+    # remove 'plain text' links that were linkified by jira
+    html = re.sub(r'<a href="(.*?)">\1</a>', r'\1', html)
+
+    h = html2text.HTML2Text()
+    h.body_width = 0
+    h.ignore_links = True
+    h.inline_links = False
+    h.unicode_snob = True
+    return h.handle(html)
 
 users = {}
 
@@ -105,7 +153,7 @@ runAll = False
 maillist = {}
 retrIssues = []
 for issue in issues:
-    issue = get(issue['self'])
+    issue = get(issue['self'] + "?expand=renderedFields")
     retrIssues.append(issue)
     fields = issue['fields']
 
@@ -133,10 +181,11 @@ f.close()
 for issue in retrIssues:
     # check if issue is already on BZ
     existing_bugs = [bug.bug_id for bug in bz.query({"short_desc": "PYWP-16"})]
-    if existing_bugs:
+    if existing_bugs and skip_existing:
         print "Skipping " + issue['key'] + " " + fields['summary'] + "; already uploaded? Check bug ID %r" % existing_bugs
         continue
     fields = issue['fields']
+    renderedFields = issue['renderedFields']
 
     cclist = set()
     if fields['assignee']:
@@ -149,8 +198,8 @@ for issue in retrIssues:
     print issue['key'] + " " + fields['summary'],
     sys.stdout.flush()
 
-    if not fields['description']:
-        fields['description'] = u''
+    if not renderedFields['description']:
+        renderedFields['description'] = u''
     description = u"""This issue was converted from https://jira.toolserver.org/browse/{i[key]}.
 Summary: {f[summary]}
 Issue type: {f[issuetype][name]} - {f[issuetype][description]}
@@ -158,9 +207,13 @@ Priority: {f[priority][name]}
 Status: {f[status][name]}
 Assignee: {assignee}
 
-On {f[created]:%a, %d %b %Y %T}, {f[reporter][displayName]} <{f[reporter][emailAddress]}> opened the following bug:
-{wrapped_description}
-""".format(i=issue, f=fields, assignee=assignee, wrapped_description=reply_format(fields['description']))
+-------------------------------------------------------------------------------
+From: {f[reporter][displayName]} <{f[reporter][emailAddress]}>
+Date: {f[created]:%a, %d %b %Y %T}
+-------------------------------------------------------------------------------
+
+{description}
+""".format(i=issue, f=fields, assignee=assignee, description=htmltobz(renderedFields['description']))
 
     params = bug_defaults.copy()
     params['bug_severity'] = fields['priority']['name']
@@ -173,12 +226,16 @@ On {f[created]:%a, %d %b %Y %T}, {f[reporter][displayName]} <{f[reporter][emailA
 
     ncs = 0
     natt = 0
-    for comment in fields['comment']['comments']:
+    for comment,renderedComment in zip(fields['comment']['comments'], renderedFields['comment']['comments']):
         ncs += 1
         cclist.add(getBZuser(comment['author']['emailAddress'], comment['author']['displayName']))
-        commenttext = """On {f[created]:%a, %d %b %Y %T}, {f[author][displayName]} <{f[author][emailAddress]}> wrote:
-{wrapped_description}
-""".format(f=comment, wrapped_description=reply_format(comment["body"]))
+        commenttext = """-------------------------------------------------------------------------------
+From: {f[author][displayName]} <{f[author][emailAddress]}>
+Date: {f[created]:%a, %d %b %Y %T}
+-------------------------------------------------------------------------------
+
+{description}
+""".format(f=comment, description=htmltobz(renderedComment["body"]))
 
         bug.addcomment(commenttext)
 
@@ -220,28 +277,29 @@ On {f[created]:%a, %d %b %Y %T}, {f[reporter][displayName]} <{f[reporter][emailA
     print " -- %i comments, %i attachments" % (ncs, natt)
     sys.stdout.flush()
 
-    comment = "This bug has been migrated to Bugzilla: https://bugzilla.wikimedia.org/%i" % bug.bug_id
-    response = requests.post(issue['self'] + "/transitions",
-        headers={"content-type": "application/json"},
-        data=json.dumps(
-            {
-                "transition": {"id": "2"},
-                "update": {
-                    "comment": [{"add": {"body": comment}}],
-                    "resolution": [{"set": {"id": "7"}}] # "Answered"
-                }
-            }
-        ),
-        auth=('bugzilla-exporter', password)
-    )
-
-    if response.status_code != 204: #ok
-        print "WARNING: Cannot transition bug %s: %s" % (issue['key'], response.text)
-        requests.post(issue['self'] + "/comment",
+    if saveMigration:
+        comment = "This bug has been migrated to Bugzilla: https://bugzilla.wikimedia.org/%i" % bug.bug_id
+        response = requests.post(issue['self'] + "/transitions",
             headers={"content-type": "application/json"},
-            data=json.dumps({'body': comment}),
+            data=json.dumps(
+                {
+                    "transition": {"id": "2"},
+                    "update": {
+                        "comment": [{"add": {"body": comment}}],
+                        "resolution": [{"set": {"id": "7"}}] # "Answered"
+                    }
+                }
+            ),
             auth=('bugzilla-exporter', password)
         )
+
+        if response.status_code != 204: #ok
+            print "WARNING: Cannot transition bug %s: %s" % (issue['key'], response.text)
+            requests.post(issue['self'] + "/comment",
+                headers={"content-type": "application/json"},
+                data=json.dumps({'body': comment}),
+                auth=('bugzilla-exporter', password)
+            )
 
     if not runAll:
         if raw_input().upper() == "A":
