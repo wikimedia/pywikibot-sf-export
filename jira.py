@@ -51,7 +51,7 @@ base_url = "https://bugzilla.wikimedia.org/xmlrpc.cgi"
 saveMigration = True
 skip_existing = True
 
-if True:
+if False:
     base_url = "http://192.168.1.103:8080/xmlrpc.cgi"
     saveMigration = False
     skip_existing = False
@@ -142,7 +142,7 @@ print "Retrieving issues from JIRA..."
 issues = get(
     'https://jira.toolserver.org/rest/api/2/search',
     params={
-        'jql': 'project = %s AND status in (Open, "In Progress", Reopened, "In Review", Assigned, "Waiting for customer")' % project,
+        'jql': 'project = %s' % project, # AND status in (Open, "In Progress", Reopened, "In Review", Assigned, "Waiting for customer")' % project,
         'fields': 'self',
         'maxResults': stepsize
     }
@@ -179,14 +179,20 @@ json.dump(users, f)
 f.close()
 
 for issue in retrIssues:
-    # check if issue is already on BZ
-    existing_bugs = [bug.bug_id for bug in bz.query({"short_desc": "PYWP-16"})]
-    if existing_bugs and skip_existing:
-        print "Skipping " + issue['key'] + " " + fields['summary'] + "; already uploaded? Check bug ID %r" % existing_bugs
-        continue
     fields = issue['fields']
     renderedFields = issue['renderedFields']
 
+    # check if issue is already on BZ
+    existing_bugs = bz.query({"short_desc": issue['key'] + " "})
+    if existing_bugs and skip_existing:
+        found = False
+        for bug in existing_bugs:
+            if (issue['key'] + " ") in bug.summary:
+                print "Skipping " + issue['key'] + " " + fields['summary'] + "; already uploaded? Check bug ID %i" % bug.bug_id
+                found = True
+                break
+        if found:
+            continue
     cclist = set()
     if fields['assignee']:
         cclist.add(getBZuser(fields['assignee']['emailAddress'], fields['assignee']['displayName']))
@@ -197,6 +203,10 @@ for issue in retrIssues:
 
     print issue['key'] + " " + fields['summary'],
     sys.stdout.flush()
+
+    if not runAll:
+        if raw_input().upper() == "A":
+            runAll = True
 
     if not renderedFields['description']:
         renderedFields['description'] = u''
@@ -219,6 +229,7 @@ Date: {f[created]:%a, %d %b %Y %T}
     params['bug_severity'] = fields['priority']['name']
     params['summary'] = issue['key'] + " " + fields['summary']
     params['description'] = description
+    params['assigned_to'] = username # set assignee to the bug convertor initially
 
     bug = bz.createbug(**params)
     print " -- bz id ", bug.bug_id,
@@ -264,6 +275,41 @@ Date: {f[created]:%a, %d %b %Y %T}
         if user:
             update['cc_add'].append(user)
 
+    if fields['status']:
+        sn = fields['status']['name']
+        if sn in ["Open", "Reopened", "Unassigned", "Accepted", "Waiting for customer"]:
+            update['status'] = "NEW"
+        elif sn in ["In Progress", "In Review", "Assigned"]:
+            update['status'] = "ASSIGNED"
+        elif sn in ["Resolved", "Closed", "Declined", "Done", "Aborted"]:
+            update['status'] = "RESOLVED"
+            if 'assigned_to' not in update:
+                update['assigned_to'] = '(none)'
+            update['comment'] = """
+This bug was imported as RESOLVED. The original assignee has therefore not been
+set, and the original reporters/responders have not been added as CC, to
+prevent bugspam.
+
+If you re-open this bug, please consider adding these people to the CC list:
+Original assignee: %s
+CC list: %s""" % (update['assigned_to'], ', '.join(update['cc_add']))
+            del update['assigned_to'] # no need to assign a bug that has been resolved
+            del update['cc_add'] # also no need to add CCs
+
+    if fields['resolution']:
+        if 'status' in update and update['status'] == "RESOLVED":
+            rn = fields['resolution']['name']
+            if rn in ["Fixed", "Answered"]:
+                update['resolution'] = "FIXED"
+            elif rn in ["Won't Fix", "Declined", "External/Upstream"]:
+                update['resolution'] = "WONTFIX"
+            elif rn in ["Incomplete", "Cannot Reproduce"]:
+                update['resolution'] = "WORKSFORME"
+            elif rn in ["Duplicate"]:
+                update['resolution'] = "DUPLICATE" # these should not be imported in the first place...
+            elif rn in ["Not a bug"]:
+                update['resolution'] = "INVALID"
+
     bzupdate = bz.build_update(**update)
     try:
         bz.update_bugs(bug.bug_id, bzupdate)
@@ -301,6 +347,4 @@ Date: {f[created]:%a, %d %b %Y %T}
                 auth=('bugzilla-exporter', password)
             )
 
-    if not runAll:
-        if raw_input().upper() == "A":
-            runAll = True
+
