@@ -344,6 +344,9 @@ CC list: %s""" % (update['assigned_to'], ', '.join(update['cc_add']))
     print " -- %i comments, %i attachments" % (ncs, natt)
     sys.stdout.flush()
 
+    print "Age: %i days" % (abs(fields['updated'] - datetime.now()).days)
+    recentBug = abs(fields['updated'] - datetime.now()).days < 90
+
     if saveMigration:
         comment = "This bug has been migrated to Bugzilla: https://bugzilla.wikimedia.org/%i" % bug.bug_id
         response = requests.post(issue['self'] + "/transitions",
@@ -362,10 +365,11 @@ CC list: %s""" % (update['assigned_to'], ', '.join(update['cc_add']))
 
         if response.status_code != 204: #ok
             print "WARNING: Cannot transition bug %s: %s" % (issue['key'], response.text)
-            requests.post(issue['self'] + "/comment",
-                headers={"content-type": "application/json"},
-                data=json.dumps({'body': comment}),
-                auth=('bugzilla-exporter', password)
-            )
+            if recentBug:
+                requests.post(issue['self'] + "/comment",
+                    headers={"content-type": "application/json"},
+                    data=json.dumps({'body': comment}),
+                    auth=('bugzilla-exporter', password)
+                )
 
 
