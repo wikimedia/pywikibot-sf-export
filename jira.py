@@ -193,7 +193,7 @@ for mail, name in maillist.items():
         print "%s <%s> not found" % (name, mail)
 
 f = open('user-email-mapping.json', 'w')
-json.dump(users, f)
+json.dump(users, f, indent=4)
 f.close()
 
 for issue in retrIssues:
