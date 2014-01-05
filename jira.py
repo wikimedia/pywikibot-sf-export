@@ -34,13 +34,27 @@ from datetime import datetime, timedelta
 # iets met BugZilla nog
 
 # JIRA config
-project = "REPORTS"   # SET THIS!
 stepsize = 1000
+
+if len(sys.argv) < 3:
+    print("""Usage: {argv[0]} 'bugzilla component name within Tool Labs Tools' 'JIRA JQL query' [-importdoubles]
+
+    -importdoubles can be used to double-import bugs, which is useful for
+                   testing. Otherwise, bugs that already exist in Bugzilla
+                   are skipped.
+
+Example:
+    {argv[0]} 'DrTrigonBot - General' 'project = DRTRIGON'"
+""".format(argv=sys.argv))
+    sys.exit(1)
+
+component = sys.argv[1]
+jql = sys.argv[2]
 
 # BZ config
 bug_defaults = {
     'product': 'Tool Labs tools',      # SET THIS!
-    'component': 'tsreports',  # SET THIS!
+    'component': component, #"Database Queries",  # SET THIS!
     'version': 'unspecified',
     'blocked': '',               # SET THIS! (to tracking bug or empty for no tracking bug)
     'op_sys': 'All',
@@ -49,7 +63,7 @@ bug_defaults = {
 
 base_url = "https://bugzilla.wikimedia.org/xmlrpc.cgi"
 saveMigration = True
-skip_existing = True
+skip_existing = "-importdoubles" not in sys.argv
 
 if False:
     base_url = "http://192.168.1.103:8080/xmlrpc.cgi"
@@ -142,7 +156,7 @@ print "Retrieving issues from JIRA..."
 issues = get(
     'https://jira.toolserver.org/rest/api/2/search',
     params={
-        'jql': 'project = %s' % project, # AND status in (Open, "In Progress", Reopened, "In Review", Assigned, "Waiting for customer")' % project,
+        'jql': jql,
         'fields': 'self',
         'maxResults': stepsize
     }
@@ -152,6 +166,7 @@ runAll = False
 
 maillist = {}
 retrIssues = []
+print "Getting %i details..." % len(issues)
 for issue in issues:
     issue = get(issue['self'] + "?expand=renderedFields")
     retrIssues.append(issue)
