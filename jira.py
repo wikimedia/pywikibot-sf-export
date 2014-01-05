@@ -125,6 +125,8 @@ except Exception, e:
 
 def getBZuser(email, name):
     global users
+    if not email:
+        email = name + "@invalid"
     if email in users:
         return users[email]
 
@@ -178,7 +180,8 @@ for issue in issues:
     maillist[fields['reporter']['emailAddress']] = fields['reporter']['displayName']
 
     for c in fields['comment']['comments']:
-        maillist[c['author']['emailAddress']] = c['author']['displayName']
+        if 'author' in c:
+            maillist[c['author']['emailAddress']] = c['author']['displayName']
 
 print "Retrieving users from bugzilla..."
 
@@ -254,8 +257,11 @@ Date: {f[created]:%a, %d %b %Y %T}
     natt = 0
     for comment,renderedComment in zip(fields['comment']['comments'], renderedFields['comment']['comments']):
         ncs += 1
-        cclist.add(getBZuser(comment['author']['emailAddress'], comment['author']['displayName']))
-        commenttext = """-------------------------------------------------------------------------------
+        if 'author' in comment:
+            cclist.add(getBZuser(comment['author']['emailAddress'], comment['author']['displayName']))
+        else:
+            comment['author'] = {'displayName': "Anonymous", 'emailAddress': 'None'}
+        commenttext = u"""-------------------------------------------------------------------------------
 From: {f[author][displayName]} <{f[author][emailAddress]}>
 Date: {f[created]:%a, %d %b %Y %T}
 -------------------------------------------------------------------------------
